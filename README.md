@@ -11,12 +11,14 @@ Funciona no Windows. É uma versão de teste, feita para amigos.
 
 ## Instalar
 
-1. Instale o [Node](https://nodejs.org/pt/download), versão LTS. É o programa que faz o app funcionar.
-2. [Baixe o app](https://github.com/rivovisk/financas-app/archive/refs/heads/main.zip).
-3. Clique com o botão direito no ZIP e escolha **Extrair tudo**.
-4. Abra a pasta e clique duas vezes em **Instalar.cmd**.
-5. Se o Windows avisar que protegeu o computador, clique em **Mais informações** e em **Executar assim mesmo**. O aviso
+1. [Baixe o app](https://github.com/rivovisk/financas-app/archive/refs/heads/main.zip).
+2. Clique com o botão direito no ZIP e escolha **Extrair tudo**.
+3. Abra a pasta e clique duas vezes em **Instalar.cmd**.
+4. Se o Windows avisar que protegeu o computador, clique em **Mais informações** e em **Executar assim mesmo**. O aviso
    aparece porque o app não tem um certificado pago.
+
+O app precisa do [Node](https://nodejs.org/pt), um programa grátis. Se o computador não tem, o instalador baixa o original
+(41 MB), confere e guarda na pasta do app. Quem faz isso é o arquivo `node.ps1`. Não precisa de senha de administrador.
 
 O app abre no navegador. Depois, use o atalho **Financas** na área de trabalho. Ele liga junto com o Windows.
 
