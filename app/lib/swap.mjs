@@ -56,6 +56,10 @@ if (!ok) {
     for (const n of readdirSync(data)) if (/[.]json([.]bak)?$/.test(n) && !existsSync(join(dir, 'data', n))) rmSync(join(data, n)); // made by the version being undone
     cpSync(join(dir, 'data'), data, { recursive: true });
   });
-  await start();
 }
-writeFileSync(join(dir, 'result.json'), JSON.stringify({ version, ok }));
+// The restored app checks this result when it signs in or looks for updates.
+try {
+  writeFileSync(join(dir, 'result.json'), JSON.stringify({ version, ok }));
+} finally {
+  if (!ok) await start();
+}

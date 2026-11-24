@@ -7,11 +7,31 @@ export const hash = (s, n = 16) => createHash('sha256').update(String(s)).digest
 
 const BANKS = { '001': 'Banco do Brasil', '033': 'Santander', '041': 'Banrisul', '077': 'Inter', '102': 'XP', '104': 'Caixa', '208': 'BTG Pactual', '212': 'Original', '237': 'Bradesco', '260': 'Nubank', '290': 'PagBank', '323': 'Mercado Pago', '336': 'C6 Bank', '341': 'Itaú', '380': 'PicPay', '422': 'Safra', '748': 'Sicredi', '756': 'Sicoob' };
 
-// A tax id in any form, whole or masked, never reaches the disk.
+// Drop document shapes we recognize in unstructured bank descriptions.
 // CNPJ before CPF, so that the longer one goes whole; with or without dots, dashes and spaces, glued to a word or not.
 const TAX_ID = /(?<![\d•*])[\d•*]{2}[ .-]?[\d•*]{3}[ .-]?[\d•*]{3}[ .\/-]{0,2}[\d•*]{4}[ .-]?[\d•*]{2}(?![\d•*])|(?:[\d•*xX]{3}\.){2}[\d•*xX]{3}-[\d•*xX]{2}|(?<![\d•*])[\d•*]{3}[ .-]?[\d•*]{3}[ .-]?[\d•*]{3}[ .\/-]?[\d•*]{2}(?![\d•*])|[A-Z\d]{2}\.[A-Z\d]{3}\.[A-Z\d]{3}\/[A-Z\d]{4}-\d{2}/g;
+// The formatted shape is specific enough to remove as-is. For other alphanumeric
+// shapes the official check digits distinguish documents from merchant codes.
+const FORMATTED_CNPJ = /\b[A-Z\d]{2}\.[A-Z\d]{3}\.[A-Z\d]{3}\/[A-Z\d]{4}[-\u2010-\u2015]\d{2}\b/gi;
+const CNPJ_TEXT = /\b[A-Z\d]{2}[.\s-]?[A-Z\d]{3}[.\s-]?[A-Z\d]{3}[./\s-]?[A-Z\d]{4}[-\s\u2010-\u2015]?\d{2}\b/gi;
+const TYPED_CPF = /(?<![A-Z\d])[\d*x•]{3}[.\s\u2010-\u2015-]?[\d*x•]{3}[.\s\u2010-\u2015-]?[\d*x•]{3}[.\s\u2010-\u2015-]?[\d*x•]{2}(?![A-Z\d])/gi;
+
+function cnpjWithCheckDigits(value) {
+  const text = value.replace(/[^A-Z\d]/gi, '').toUpperCase();
+  if (!/[A-Z]/.test(text)) return false;
+  const digit = (prefix) => {
+    const sum = [...prefix].reverse().reduce((total, c, i) => total + (c.charCodeAt(0) - 48) * (2 + i % 8), 0);
+    const remainder = sum % 11;
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+  return digit(text.slice(0, 12)) === Number(text[12]) && digit(text.slice(0, 13)) === Number(text[13]);
+}
+
+export function redactDocuments(text) {
+  return text.replace(FORMATTED_CNPJ, '').replace(CNPJ_TEXT, (value) => cnpjWithCheckDigits(value) ? '' : value).replace(TAX_ID, '').replace(TYPED_CPF, (value) => /\d|[*•]/.test(value) ? '' : value);
+}
 export function cleanName(s) {
-  return String(s ?? '').replace(/\s+/g, ' ').split(/ - [•*.\d]| ?Ag[êe]ncia:/)[0].replace(TAX_ID, '').replace(/\s+/g, ' ').replace(/^[\s-]+|[\s-]+$/g, '');
+  return redactDocuments(String(s ?? '').replace(/\s+/g, ' ').split(/ - [•*.\d]| ?Ag[êe]ncia:/)[0]).replace(/\s+/g, ' ').replace(/^[\s-]+|[\s-]+$/g, '');
 }
 // "LOJA PASSO" becomes "Loja Passo"; a name already in mixed case is kept.
 export function niceName(s) {

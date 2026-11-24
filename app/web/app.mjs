@@ -11,6 +11,10 @@ const store = (kind) => ({
 });
 const local = store('localStorage'), tab = store('sessionStorage');
 const narrow = matchMedia('(max-width:719px)');
+const ownerKey = 'fin-owner-session';
+let session = tab.get(ownerKey), setupCode = /^#owner=([0-9a-f]{64})$/.exec(location.hash)?.[1];
+if (setupCode) history.replaceState(history.state, '', location.pathname + location.search);
+function remember(token) { session = token; tab.set(ownerKey, token ?? ''); }
 
 const st = { data: null, off: { out: [], in: [] }, closed: new Set(), more: 200, range: false, menu: null, rule: {}, lastUndone: null, justRead: false, connected: false, loadedAt: 0 };
 st.balls = tab.get('fin-view') === 'balls';
@@ -181,26 +185,105 @@ function moved(restore) {
 }
 
 // ---- server ----------------------------------------------------------------------------------
+let locked = false;
+function unlockForm(setup) {
+  st.data = st.classified = null;
+  st.page = 'owner';
+  last = '';
+  const dlg = $('layer');
+  if (dlg.open) dlg.close();
+  dlg.replaceChildren();
+  document.documentElement.classList.remove('is-layered');
+  document.title = 'Acesso · Finanças';
+  locked = true;
+  const canSetup = setup && setupCode;
+  const title = setup ? 'Proteja seu Finanças' : 'Entre no Finanças';
+  const transport = window.isSecureContext;
+  const canEnter = transport && (!setup || canSetup);
+  const submit = setup ? 'Criar senha' : 'Entrar';
+  const accessPath = setup ? '/api/owner/setup' : '/api/owner/login';
+  $('app').innerHTML = `<main class="connect owner"><div><h1 id="owner-title">${title}</h1>
+    ${canEnter ? `<form id="owner-form" data-setup="${Boolean(canSetup)}" action="${accessPath}" method="post" aria-labelledby="owner-title">
+      <div class="f"><label for="owner-password">Senha</label>
+      <input class="fin-field" id="owner-password" name="password" type="password" autocomplete="${setup ? 'new-password' : 'current-password'}" enterkeyhint="done" minlength="12" maxlength="128" aria-describedby="owner-help owner-error" required>
+      <p class="fin-small" id="owner-help">${setup ? 'Escolha uma senha com pelo menos 12 caracteres.' : 'Use a senha que você criou no computador do app.'}</p></div>
+      <label><input id="owner-show" type="checkbox"> Mostrar senha</label>
+      <button type="submit" class="fin-btn tall">${submit}</button><p id="owner-error" role="status"></p>
+    </form>` : `<p class="lead">${transport ? 'Abra o Finanças pelo atalho no computador do app para criar sua senha.' : 'Abra o Finanças pelo atalho ou use o endereço HTTPS da rede privada.'}</p>`}
+    </div></main>`;
+  $('owner-password')?.focus();
+}
+async function api(path, init = {}) {
+  const token = session, headers = new Headers(init.headers);
+  if (token) headers.set('Authorization', 'Bearer ' + token);
+  const r = await fetch(path, { ...init, headers });
+  if (r.status === 401) {
+    const info = await r.clone().json();
+    if (token !== session) return r;
+    remember(null);
+    if (!locked) unlockForm(info.setup);
+  }
+  return r;
+}
 async function load() {
-  const r = await fetch('/api/state');
+  const token = session, r = await api('/api/state');
   if (!r.ok) throw new Error('state');
-  st.data = await r.json();
+  const data = await r.json();
+  if (token !== session) throw new Error('session');
+  st.data = data;
   st.classified = null;
   st.loadedAt = Date.now();
 }
 const post = async (path, body = {}) => {
-  const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return r.ok ? r.json() : null;
 };
+async function enterOwner(form) {
+  const error = $('owner-error'), field = $('owner-password'), button = form.querySelector('button[type=submit]');
+  if (button.disabled) return;
+  const setup = form.dataset.setup === 'true';
+  button.disabled = true;
+  field.removeAttribute('aria-invalid');
+  error.textContent = '';
+  try {
+    const r = await fetch(form.getAttribute('action'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: field.value, ...(setup ? { code: setupCode } : {}) }),
+    });
+    const info = await r.json();
+    if (!r.ok) {
+      if (r.status === 409) { setupCode = null; location.reload(); return; }
+      error.textContent = ({
+        'setup-code': 'Abra o app novamente pelo atalho. O código deste acesso venceu.',
+        'password-length': 'A senha precisa ter de 12 a 128 caracteres.',
+        password: 'Senha incorreta. Confira e tente de novo.',
+        wait: 'Aguarde alguns segundos e tente de novo.',
+      })[info.error] ?? 'O acesso não pôde ser concluído. Tente de novo.';
+      if (info.error === 'password' || info.error === 'password-length') {
+        field.setAttribute('aria-invalid', 'true');
+        field.focus();
+      }
+      return;
+    }
+    remember(info.token);
+    setupCode = null;
+    form.reset();
+    locked = false;
+    await start();
+  } catch {
+    error.textContent = 'O app não respondeu. Tente de novo.';
+  } finally { button.disabled = false; }
+}
 let watching = false;
 async function watch() {
-  if (watching) return;
+  if (watching || !st.data) return;
   watching = true;
   const first = !st.data.readAt || parse().name === 'conectar';
   for (;;) {
     await new Promise((r) => setTimeout(r, 700));
     let j = null;
-    try { j = await (await fetch('/api/job')).json(); } catch { /* the server is restarting */ }
+    try { const r = await api('/api/job'); if (r.ok) j = await r.json(); } catch { /* the server is restarting */ }
+    if (!st.data) { watching = false; return; }
     if (!j) continue;
     st.data.job = j.job;
     if (!j.job.running) break;
@@ -208,6 +291,7 @@ async function watch() {
   }
   watching = false;
   await load().catch(() => {});
+  if (!st.data) return;
   st.closed.delete('run');
   st.justRead = !st.data.sync.problem;
   if (first) st.connected = !st.data.sync.problem && !!st.data.readAt;
@@ -231,7 +315,8 @@ async function update() {
   for (let i = 0; i < 200; i++) {
     await new Promise((r) => setTimeout(r, 700));
     let j = null;
-    try { j = await (await fetch('/api/job')).json(); } catch { gone = true; }
+    try { const r = await api('/api/job'); if (r.ok) j = await r.json(); } catch { gone = true; }
+    if (!st.data) return;
     if (!j) continue;
     if (j.up.version !== was) return location.reload();
     if (gone || j.up.problem || j.up.undone) break;
@@ -265,6 +350,11 @@ const ACT = {
   refresh,
   update,
   reload: () => location.reload(),
+  async 'sign-out'() {
+    await post('/api/owner/logout').catch(() => {});
+    remember(null);
+    unlockForm(false);
+  },
   enter() { st.connected = false; go('#/inicio'); moved(0); },
   'close-note'() { const n = context().notice; if (n) st.closed.add(n.kind); draw(); },
   flip(el) {
@@ -342,6 +432,8 @@ document.addEventListener('click', (ev) => {
 });
 document.addEventListener('change', (ev) => {
   const el = ev.target;
+  if (el.id === 'owner-show') { $('owner-password').type = el.checked ? 'text' : 'password'; return; }
+  if (!st.data) return;
   if (el.dataset.opt) { st.rule.k = el.dataset.opt; return draw(); }
   if (el.dataset.tick) {
     const k = el.dataset.tick, all = [...el.closest('.menu').querySelectorAll('[data-tick]')].slice(1), on = el.value === '*' ? (el.checked ? all : []) : all.filter((o) => o.checked);
@@ -362,6 +454,8 @@ document.addEventListener('input', (ev) => {
 });
 document.addEventListener('submit', async (ev) => {
   ev.preventDefault();
+  if (locked && ev.target === $('owner-form')) return enterOwner(ev.target);
+  if (!st.data) return;
   const f = new FormData(ev.target);
   if (ev.target.dataset.form === 'range') {
     const n = (s) => { const v = parseFloat(String(s ?? '').replace(/\./g, '').replace(',', '.')); return v > 0 ? String(v) : null; };
@@ -375,6 +469,7 @@ document.addEventListener('submit', async (ev) => {
     const body = Object.fromEntries(f);
     const r = await post('/api/connect', body);
     ev.target.reset();
+    if (!st.data) return;
     st.connected = false;
     if (!r) st.data.sync.problem = 'keys';
     else {
@@ -393,14 +488,18 @@ document.addEventListener('visibilitychange', async () => {
   if (document.hidden || !st.data || Date.now() - st.loadedAt < 5 * 60000) return;
   await load().catch(() => {});
   draw();
-  if (st.data.job.running) watch();
+  if (st.data?.job.running) watch();
 });
 
 setInterval(() => { if (!document.hidden && st.data && !st.data.job.running && Date.now() - st.loadedAt > 15 * 60000) load().then(draw, () => {}); }, 60000);
 
-load().then(() => {
+async function start() {
+  await load();
   if (!history.state) history.replaceState({ y: 0, n: 0 }, '');
   moved();
-  if (st.data.job.running) watch();
-  else if (!st.data.readAt && st.data.hasKeys && !st.data.sync.problem) watch();
-}).catch(() => { $('app').innerHTML = '<main class="connect"><div><h1>O app não respondeu.</h1><p class="lead">Confira se o computador está ligado e tente de novo.</p><button type="button" class="fin-btn tall" data-act="reload">Tentar de novo</button></div></main>'; });
+  if (st.data.job.running || (!st.data.readAt && st.data.hasKeys && !st.data.sync.problem)) watch();
+}
+start().catch(() => {
+  if (locked) return;
+  $('app').innerHTML = '<main class="connect"><div><h1>O app não respondeu.</h1><p class="lead">Confira se o computador está ligado e tente de novo.</p><button type="button" class="fin-btn tall" data-act="reload">Tentar de novo</button></div></main>';
+});

@@ -7,9 +7,9 @@ sozinho e mostra para onde o dinheiro vai e quanto você tem.
 - **Fica no seu computador.** Dados e chaves não vão para nenhuma nuvem, nem para quem fez o app.
 - **Grátis.** Cada pessoa usa a própria conta do Meu Pluggy, com até 5 bancos, só para uso pessoal.
 
-Funciona no Windows. É uma versão de teste, feita para amigos.
+Funciona no Windows e no macOS. É uma versão de teste, feita para amigos.
 
-## Instalar
+## Instalar no Windows
 
 1. [Baixe o app](https://github.com/rivovisk/financas-app/archive/refs/heads/main.zip).
 2. Clique com o botão direito no ZIP e escolha **Extrair tudo**.
@@ -17,10 +17,18 @@ Funciona no Windows. É uma versão de teste, feita para amigos.
 4. Se o Windows avisar que protegeu o computador, clique em **Mais informações** e em **Executar assim mesmo**. O aviso
    aparece porque o app não tem um certificado pago.
 
-O app precisa do [Node](https://nodejs.org/pt), um programa grátis. Se o computador não tem, o instalador baixa o original
-(41 MB), confere e guarda na pasta do app. Quem faz isso é o arquivo `node.ps1`. Não precisa de senha de administrador.
+O instalador baixa o [Node](https://nodejs.org/pt) oficial (41 MB) para a pasta do Finanças e verifica a integridade. Se já tiver uma cópia verificada na pasta do app, ele a reaproveita. Não precisa de senha de administrador. O script `node.ps1` verifica o ZIP e o executável antes de usar o Node.
 
-O app abre no navegador. Depois, use o atalho **Financas** na área de trabalho. Ele liga junto com o Windows.
+O app abre no navegador para você criar sua senha. Depois, use o atalho **Financas** na área de trabalho. Ele liga junto com o Windows.
+
+## Primeiro uso no Mac
+
+1. Instale a versão LTS do [Node.js](https://nodejs.org/pt/download) se você ainda não tiver Node 20 ou mais recente.
+2. [Baixe o app](https://github.com/rivovisk/financas-app/archive/refs/heads/main.zip), extraia o ZIP e mova a pasta extraída para onde quer guardar o app.
+3. Abra o Terminal, digite `cd ` (com um espaço no fim), arraste a pasta extraída para a janela do Terminal e pressione Enter.
+4. Digite `node app/open.mjs` e pressione Enter. O app inicia no seu Mac e abre no navegador padrão para você criar sua senha.
+
+Depois de reiniciar o Mac, repita os passos 3 e 4. Guarde a pasta extraída, pois é dela que o app roda e recebe as atualizações.
 
 ## Ligar o seu banco
 
@@ -40,6 +48,8 @@ Cada banco tem um Item ID. Para mais de um, separe por vírgula. A autorização
 
 ## Atualizações
 
+Na primeira abertura depois de atualizar para a versão com login, abra o app pelo atalho do Windows ou pelo comando do Mac para criar sua senha.
+
 Quando há uma versão nova, o app avisa. Você clica em **Atualizar** e ele volta sozinho. Nada muda sem o seu clique.
 Os dados e as chaves ficam fora da pasta do app. Se a versão nova não abrir, o app volta para a anterior.
 
@@ -47,12 +57,12 @@ Cada versão é assinada. O app só aceita arquivos com essa assinatura.
 
 ## Onde ficam os seus dados
 
-Na pasta `.financas-pessoais`, dentro da sua pasta de usuário do Windows. CPF, endereço e renda não são guardados. O app
+Na pasta `.financas-pessoais`, dentro da sua pasta de usuário. No Mac, abra o Finder, pressione **Command + Shift + G** e digite `~/.financas-pessoais`. O app descarta os campos de CPF, endereço e renda do banco e filtra documentos nas descrições. O app
 fala só com o Pluggy, e com o GitHub para ver se há versão nova. Nada seu é enviado para o GitHub.
 
 ## Remover
 
-Clique duas vezes em **Desinstalar.cmd**. Os seus dados ficam, caso você volte. Para apagar tudo, apague a pasta
+No Windows, clique duas vezes em **Desinstalar.cmd**. No Mac, reinicie o computador e mande a pasta extraída para o Lixo. Os seus dados ficam, caso você volte. Para apagar tudo, apague a pasta
 `.financas-pessoais`. Para cortar o acesso, remova a conexão no Meu Pluggy.
 
 ## Achou um erro?

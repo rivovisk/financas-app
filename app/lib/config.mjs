@@ -15,7 +15,7 @@ export const INSTALL = (() => { try { return JSON.parse(readFileSync(join(APP, '
 export const now = () => (process.env.FIN_NOW ? Date.parse(process.env.FIN_NOW) : Date.now()); // fixed clock for tests
 export const NAMES = ['PLUGGY_CLIENT_ID', 'PLUGGY_CLIENT_SECRET', 'PLUGGY_ITEM_ID'];
 
-mkdirSync(DATA, { recursive: true });
+mkdirSync(DATA, { recursive: true, mode: 0o700 });
 
 // The keys live with the data, outside the app folder, so a new version can never erase them.
 export const envPath = () => resolve(process.env.FIN_ENV ?? join(DATA, '.env'));

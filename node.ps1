@@ -10,11 +10,17 @@ $hashes = @{
   'x64'   = 'e2edda75bfb089654705cf65a13b58933bfd5f57148e8ebda916f58a2474f1f7'
   'arm64' = '181ebe431b90787113a9e4fc80d38ce86d37888a353a0386de44d2872e48cb97'
 }
+$exeHashes = @{
+  'x64'   = 'f5109dc868ec38703ad8f305e0aceece717cb60d4889873f434017af4e96cccb'
+  'arm64' = '00edc356a01d7fe586beebe7519bb1acdff9dd62064ce4cf12ff1ed4a8d1810e'
+}
 $from = 'https://nodejs.org/dist'
 if ($env:FIN_NODE_FROM) { $from = $env:FIN_NODE_FROM } # tests; the SHA-256 is the same
 $temp = $null
 try {
   $arch = if (@($env:PROCESSOR_ARCHITECTURE, $env:PROCESSOR_ARCHITEW6432) -contains 'ARM64') { 'arm64' } elseif ([Environment]::Is64BitOperatingSystem) { 'x64' } else { throw 'bits' }
+  $exe = Join-Path $Folder 'node.exe'
+  if ((Test-Path -LiteralPath $exe -PathType Leaf) -and (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash -eq $exeHashes[$arch]) { exit 0 }
   $name = "node-$version-win-$arch"
   $temp = Join-Path ([IO.Path]::GetTempPath()) ('financas-' + [Guid]::NewGuid().ToString('N'))
   $null = New-Item -ItemType Directory -Path $temp
@@ -26,13 +32,16 @@ try {
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   $open = [IO.Compression.ZipFile]::OpenRead($zip)
   try {
-    $null = New-Item -ItemType Directory -Force -Path $Folder
     foreach ($f in 'node.exe', 'LICENSE') {
       $entry = $open.GetEntry("$name/$f")
       if (-not $entry) { throw 'zip' }
-      [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, (Join-Path $Folder $f), $true)
+      [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, (Join-Path $temp $f), $false)
     }
   } finally { $open.Dispose() }
+  if ((Get-FileHash -LiteralPath (Join-Path $temp 'node.exe') -Algorithm SHA256).Hash -ne $exeHashes[$arch]) { throw 'hash' }
+  $null = New-Item -ItemType Directory -Force -Path $Folder
+  Copy-Item -LiteralPath (Join-Path $temp 'LICENSE') -Destination (Join-Path $Folder 'LICENSE') -Force
+  Copy-Item -LiteralPath (Join-Path $temp 'node.exe') -Destination $exe -Force
   Write-Host 'Node pronto.'
   $code = 0
 } catch {

@@ -9,9 +9,11 @@ import { APP, DATA, PORT, NAMES, keys, now, saveKeys } from './lib/config.mjs';
 import { addRule, job, refresh, restoreRule, state, tick, undoRule } from './lib/brain.mjs';
 import { apply, lastSwap, look, up } from './lib/update.mjs';
 import { answer } from './lib/proof.mjs';
+import { ownerAuth } from './lib/owner.mjs';
 import { today } from './web/core/format.mjs';
 
 const WEB = join(APP, 'web');
+const owner = ownerAuth(DATA);
 const FILES = new Set(['app.mjs', 'screens.mjs', 'boot.js', 'style.css', 'theme.css', 'icon.svg', 'fonts/outfit.woff2', 'fonts/figtree.woff2', ...['categories', 'format', 'classify', 'views', 'balls'].map((n) => 'core/' + n + '.mjs')]);
 const MIME = { '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
@@ -82,6 +84,16 @@ async function post(req, res, path) {
   if (origin && new URL(origin).host !== req.headers.host) return json(req, res, { error: 'origin' }, 403);
   if (!/^application\/json\b/.test(req.headers['content-type'] ?? '')) return json(req, res, { error: 'type' }, 415);
   const b = await body(req);
+  if (path === '/api/owner/setup' || path === '/api/owner/login') {
+    const first = path.endsWith('/setup');
+    if (first && !isHere(req)) return json(req, res, { error: 'here' }, 403);
+    const { status, ...result } = await owner.enter(req, b, first);
+    return json(req, res, result, status);
+  }
+  if (path === '/api/owner/logout') {
+    owner.leave(req);
+    return json(req, res, { ok: true });
+  }
   if (path === '/api/refresh') {
     if (!up.running) refresh(); // an update keeps a copy of the data: nothing changes it meanwhile
     return json(req, res, { job });
@@ -123,6 +135,13 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x'), path = url.pathname;
     // A page of another site, or of another port of this computer, has no business here.
     if (path.startsWith('/api/') && !['same-origin', 'none', undefined].includes(req.headers['sec-fetch-site'])) return json(req, res, { error: 'origin' }, 403);
+    const health = path === '/api/health' && (req.method === 'GET' || req.method === 'HEAD');
+    const login = req.method === 'POST' && (path === '/api/owner/setup' || path === '/api/owner/login');
+    if (path.startsWith('/api/') && !health && !login && !owner.allows(req)) {
+      // The prior version reads up.version here while waiting for an update to restart.
+      const status = path === '/api/job' ? { up: { version: up.version } } : {};
+      return json(req, res, { error: 'owner', setup: owner.needsSetup(), ...status }, 401);
+    }
     if (req.method === 'POST') return await post(req, res, path);
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(req, res, 405, 'text/plain', '');
     if (path === '/' || path === '/index.html') return send(req, res, 200, MIME['.html'], readFileSync(join(WEB, 'index.html')));
