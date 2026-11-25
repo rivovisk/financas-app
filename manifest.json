@@ -1,9 +1,9 @@
 {
- "version": "1.2.0",
- "notes": "O app abre também no Mac, pede senha para mostrar seus dados, confere o Node do instalador do Windows, filtra mais formatos de documentos e avisa quando volta após uma atualização que falhou.",
+ "version": "1.2.1",
+ "notes": "No Windows, o atalho Financas abre o navegador na página de criar a senha. Antes, em alguns computadores, ele abria uma pasta.",
  "node": 20,
  "files": {
-  "install.json": "001bce0908ba28aa71454e0272c4cc1d403aa90edfca9a0e27fd4f5b7775c14f",
+  "install.json": "079002384fa6ca4075604bf2c68ca4af8a595152fbe8a8886c6e6b926908061c",
   "lib/brain.mjs": "8a9db8da623e6f5480190820d5fdb9c16f283569a787cf806e368e5716b330e3",
   "lib/collect.mjs": "69cf6f6191666da553c3aa614a59c1c5f39e5819aeb49a9b2c5346cc43f691a1",
   "lib/config.mjs": "b821835292501749ec79ee11c0227bae541793b5d4712a487dff8a8bf70f712e",
@@ -15,7 +15,7 @@
   "lib/store.mjs": "68ba839fec638d2bbcce7762d3d5eaa609613ce5a39d2a472eb2d99acf454686",
   "lib/swap.mjs": "379caf60a7c14c0b095d6eaf07e9fafc6ed21f779d71ea19207a179665d52a00",
   "lib/update.mjs": "5cfc2f2a4d7ac0ea09b51546e17578d025e6ef95209457c84198675c6b740971",
-  "open.mjs": "0ad672470be7b5a6836d8ed697b809c40ed52f9c7d711a92084fa9211cd32522",
+  "open.mjs": "bd597f06cebf9a967870e0d1283c1e97b1c43dd3a5b5e222bbdfe83564d51e7c",
   "server.mjs": "c49b6ca8bf7773930aaa7d5ebb8062bcf7b260a9ecf70f394a7cc9dc09b03dd7",
   "setup.mjs": "3f1f38c8f45917ba621f569ef14ea5ff857b2df913001c3a919c5604b0759324",
   "web/app.mjs": "0b8240da46b5ab3dc2e55890e4a2a519e49103813f8d3e45ff4f9ff45860d948",

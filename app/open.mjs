@@ -33,6 +33,7 @@ if (!up) {
       process.exitCode = 1;
     }
   } else {
-    spawn(join(process.env.SystemRoot ?? 'C:\\Windows', 'explorer.exe'), [page], { detached: true, stdio: 'ignore' }).unref();
+    // explorer.exe with an address opens a folder on some Windows 11 computers, and the setup page never appears.
+    spawn(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'rundll32.exe'), ['url.dll,FileProtocolHandler', page], { detached: true, stdio: 'ignore' }).unref();
   }
 }
